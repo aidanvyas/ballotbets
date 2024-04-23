@@ -7,7 +7,7 @@ import {
   Flex,
   Badge,
   Text
-} from "@chakra-ui/core";
+} from "@chakra-ui/react";
 import { MdStar } from "react-icons/md";
 import { customTheme } from "./theme";
 
