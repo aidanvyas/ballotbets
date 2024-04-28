@@ -1,0 +1,257 @@
+/* In web/static/web/style.css */
+
+/* Resetting default browser styles for a consistent look */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Times New Roman', serif;
+    color: #333;
+    line-height: 1.6;
+    background: #f4f4f4;
+    font-size: 18px;
+}
+
+header {
+    background: #fff; /* Light background for a clean look */
+    border-bottom: 1px solid #ddd; /* Add a subtle border */
+    padding: 20px 0; /* More padding for a spacious header */
+}
+
+nav {
+    width: 80%; /* Control the width of the navigation */
+    margin: 0 auto; /* Center the navigation */
+}
+
+nav ul {
+    list-style: none;
+    text-align: center;
+}
+
+nav ul li {
+    display: inline-block; /* Align items horizontally */
+    margin-right: 30px; /* Increase spacing between items */
+}
+
+nav ul li a {
+    color: #333; /* Dark text for elegance */
+    text-decoration: none;
+    font-weight: bold;
+    padding: 5px 10px; /* Padding for clickable area */
+    transition: color 0.3s; /* Smooth transition for hover effect */
+}
+
+nav ul li a:hover,
+nav ul li a:focus {
+    color: #007bff; /* Highlight color on hover/focus */
+}
+
+main {
+    max-width: 960px; /* Max width for content */
+    margin: 40px auto; /* Center the main content with more margin */
+    padding: 20px;
+    background: #fff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+}
+
+/* Typography adjustments for headings and paragraphs for better readability */
+h1, h2, h3, h4, h5, h6 {
+    color: #333;
+    margin-bottom: 20px;
+}
+
+p {
+    margin-bottom: 20px;
+}
+
+/* If you're using buttons, here's a simple style for them */
+.button-container {
+    display: flex;       /* Use flexbox to center the button */
+    justify-content: center; /* Center horizontally */
+    margin-bottom: 20px; /* Add more space below the button */
+}
+
+.button {
+    display: inline-block;
+    background-color: #007bff; /* Example button color */
+    color: white;
+    padding: 10px 20px;
+    text-decoration: none;
+    border: none;
+    border-radius: 5px;
+    font-family: 'Times New Roman', serif;
+    transition: background-color 0.3s;
+    /* Additional styles for the button */
+}
+
+.button:hover {
+    background-color: #0056b3; /* Darker shade on hover */
+}
+
+/* Footer styling if you have one */
+footer {
+    background: #333;
+    color: #fff;
+    text-align: center;
+    padding: 20px 0;
+    margin-top: 40px;
+}
+
+footer p {
+    margin: 0; /* Override paragraph default margin */
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 768px) {
+    nav ul li {
+        display: block; /* Stack the menu items on small screens */
+        margin-right: 0; /* Remove the margin */
+    }
+
+    nav ul li a {
+        display: block; /* Ensure links take up full width */
+        margin-bottom: 10px; /* Add space between stacked items */
+    }
+
+    nav {
+        width: 100%; /* Full width navigation on small screens */
+    }
+}
+
+/* In web/static/web/style.css */
+
+/* Resetting default browser styles for a consistent look */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Times New Roman', serif;
+    color: #333;
+    line-height: 1.6;
+    background: #f4f4f4;
+    font-size: 18px;
+}
+
+header {
+    background: #fff; /* Light background for a clean look */
+    border-bottom: 1px solid #ddd; /* Add a subtle border */
+    padding: 20px 0; /* More padding for a spacious header */
+}
+
+nav {
+    width: 80%; /* Control the width of the navigation */
+    margin: 0 auto; /* Center the navigation */
+}
+
+nav ul {
+    list-style: none;
+    text-align: center;
+}
+
+nav ul li {
+    display: inline-block; /* Align items horizontally */
+    margin-right: 30px; /* Increase spacing between items */
+}
+
+nav ul li a {
+    color: #333; /* Dark text for elegance */
+    text-decoration: none;
+    font-weight: bold;
+    padding: 5px 10px; /* Padding for clickable area */
+    transition: color 0.3s; /* Smooth transition for hover effect */
+}
+
+nav ul li a:hover,
+nav ul li a:focus {
+    color: #007bff; /* Highlight color on hover/focus */
+}
+
+main {
+    max-width: 960px; /* Max width for content */
+    margin: 40px auto; /* Center the main content with more margin */
+    padding: 20px;
+    background: #fff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+}
+
+/* Typography adjustments for headings and paragraphs for better readability */
+h1, h2, h3, h4, h5, h6 {
+    color: #333;
+    margin-bottom: 20px;
+}
+
+p {
+    margin-bottom: 20px;
+}
+
+/* If you're using buttons, here's a simple style for them */
+.button-container {
+    display: flex;       /* Use flexbox to center the button */
+    justify-content: center; /* Center horizontally */
+    margin-bottom: 20px; /* Add more space below the button */
+}
+
+.button {
+    display: inline-block;
+    background-color: #007bff; /* Example button color */
+    color: white;
+    padding: 10px 20px;
+    text-decoration: none;
+    border: none;
+    border-radius: 5px;
+    font-family: 'Times New Roman', serif;
+    transition: background-color 0.3s;
+    /* Additional styles for the button */
+}
+
+.button:hover {
+    background-color: #0056b3; /* Darker shade on hover */
+}
+
+/* Footer styling if you have one */
+.footnote {
+    position: relative;
+    border-bottom: 1px dotted #999;
+    cursor: help;
+}
+
+.footnote:hover::after {
+    content: attr(data-footnote);
+    position: absolute;
+    left: 0;
+    bottom: -1.5em;
+    white-space: nowrap;
+    z-index: 100;
+    background-color: #f5f5f5;
+    color: #333;
+    padding: 5px;
+    border: 1px solid #ddd;
+    font-size: 0.8em;
+    width: max-content;
+    max-width: 300px; /* Adjust width as necessary */
+}
+
+.polling-graph {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 20px auto; /* Center graph within the container */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24); /* Optional: Adds depth to graphs */
+}
+
+.main-image {
+    max-width: 100%;  /* Ensure the image doesn't overflow its container */
+    height: auto;     /* Maintain aspect ratio */
+    display: block;   /* Optional: aligns the image nicely in the container */
+    margin: 0 auto;   /* Optional: centers the image within its container */
+}
+
+.section {
+    margin-bottom: 20px; /* Adjust space between sections */
+}
