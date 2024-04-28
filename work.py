@@ -197,18 +197,15 @@ def create_state_polling_averages():
             national_poll_entry = pd.DataFrame({
                 'Joe Biden': [biden_estimated_share],
                 'Donald Trump': [trump_estimated_share],
-                'end_date': [national_poll_date]
+                'end_date': [national_poll_date],
+                'sample_size': [1000]
             })
             state_polls_to_date = pd.concat([state_polls_to_date, national_poll_entry], ignore_index=True)
 
-            if not state_polls_to_date.empty:
-                state_polls_to_date['weight'] = np.exp(-LAMBDA * (date - state_polls_to_date['end_date']).dt.days) * np.sqrt(state_polls_to_date['sample_size'])
-                state_polls_to_date['weight'] /= state_polls_to_date['weight'].sum()  # Normalize weights
-                biden_state_avg = (state_polls_to_date['Joe Biden'] * state_polls_to_date['weight']).sum()
-                trump_state_avg = (state_polls_to_date['Donald Trump'] * state_polls_to_date['weight']).sum()
-            else:
-                biden_state_avg = biden_estimated_share
-                trump_state_avg = trump_estimated_share
+            state_polls_to_date['weight'] = np.exp(-LAMBDA * (date - state_polls_to_date['end_date']).dt.days) * np.sqrt(state_polls_to_date['sample_size'])
+            state_polls_to_date['weight'] /= state_polls_to_date['weight'].sum()  # Normalize weights
+            biden_state_avg = (state_polls_to_date['Joe Biden'] * state_polls_to_date['weight']).sum()
+            trump_state_avg = (state_polls_to_date['Donald Trump'] * state_polls_to_date['weight']).sum()
 
             # Save daily averages and win probabilities
             biden_averages.loc[date, state] = biden_state_avg
@@ -404,19 +401,25 @@ def do_work():
     storage = []
 
     get_polling_data(url, processed_file)
+    print("Polling data downloaded and processed.")
 
     polling_averages_string = create_national_polling_averages(processed_file, output_file)
     storage.append(polling_averages_string)
+    print("National polling averages calculated.")
 
     close_states_string = create_state_polling_averages()
     storage.append(close_states_string)
+    print("State polling averages calculated.")
 
     electoral_college_votes_list = simulate_electoral_votes()
     storage.extend(electoral_college_votes_list)
+    print("Electoral votes simulated.")
 
     generate_plots('processed_data/president_polls_daily.csv', 'processed_data/simulated_national_election_outcomes_correlated.csv')
+    print("Polling data plots generated.")
 
     generate_map('processed_data/biden_win_probabilities.csv', 'raw_data/cb_2023_us_state_500k.shp')
+    print("Map generated.")
 
     # create the file if it doesn't exist
     
