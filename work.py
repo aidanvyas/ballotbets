@@ -23,8 +23,19 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import psycopg2
 import requests
 from scipy.stats import norm
+
+print("Script started.")
+
+try:
+    with open('db_credentials.txt', 'r') as file:
+        db_connection_string = file.read().strip()
+    db_connection = psycopg2.connect(db_connection_string)
+    print("Database connection established.")
+except Exception as e:
+    print(f"Error establishing database connection: {e}")
 
 # Constants
 LAMBDA = 0.0619
@@ -39,6 +50,7 @@ def get_polling_data(url, output_file):
         url (str): The URL of the CSV file to download.
         output_file (str): The path to save the downloaded CSV file.
     """
+    print("Function get_polling_data started.")
     # Get the polling data from the URL.
     response = requests.get(url)
 
@@ -85,7 +97,7 @@ def get_polling_data(url, output_file):
     merged_poll_data.to_csv(output_file, index=False)
 
 
-def create_national_polling_averages(input_file, output_file):
+def create_national_polling_averages(input_file):
     """
     Process polling data from a CSV file to calculate and save daily weighted averages for the candidates along with their win probabilities.
 
@@ -93,7 +105,6 @@ def create_national_polling_averages(input_file, output_file):
 
     Parameters:
         input_file (str): Path to the input CSV file containing the polling data.
-        output_file (str): Path to save the output CSV file with daily averages.
     """
     # Read polling data from the input file.
     polling_data = pd.read_csv(input_file)
@@ -102,15 +113,10 @@ def create_national_polling_averages(input_file, output_file):
     polling_data = polling_data[polling_data['state'] == '0']
 
     # Convert 'end_date' to a datetime object and set date range.
-    polling_data['end_date'] = pd.to_datetime(polling_data['end_date'])
+    polling_data['end_date'] = pd.to_datetime(polling_data['end_date'], format='%m/%d/%y')
     first_end_date = polling_data['end_date'].min() + pd.Timedelta(days=1)
     last_end_date = polling_data['end_date'].max() + pd.Timedelta(days=1)
     dates = pd.date_range(start=first_end_date, end=last_end_date)
-
-    # Initialize output file and write the header.
-    header = "Date,Joe Biden,Donald Trump,Joe Biden Win Probability,Donald Trump Win Probability\n"
-    with open(output_file, 'w') as file:
-        file.write(header)
 
     # Calculate daily weighted averages and probabilities.
     for day in dates:
@@ -132,10 +138,16 @@ def create_national_polling_averages(input_file, output_file):
         biden_win_prob = norm.cdf(z_score)
         trump_win_prob = 1 - biden_win_prob
 
-        # Append results to the output file.
-        results = f"{day.strftime('%Y-%m-%d')},{biden_avg},{trump_avg},{biden_win_prob},{trump_win_prob}\n"
-        with open(output_file, 'a') as file:
-            file.write(results)
+    # Insert results into the PostgreSQL database
+    with db_connection.cursor() as cursor:
+        for day in dates:
+            # Prepare SQL insert statement
+            insert_query = """
+            INSERT INTO national_polling_averages (date, biden_average, trump_average, biden_win_probability, trump_win_probability)
+            VALUES (%s, %s, %s, %s, %s)
+            """
+            cursor.execute(insert_query, (day, biden_avg, trump_avg, biden_win_prob, trump_win_prob))
+        db_connection.commit()
 
     return f"Biden is currently polling at {biden_avg / 100:.2%}, while Trump is at {trump_avg / 100:.2%}."
 
@@ -150,9 +162,9 @@ def create_state_polling_averages():
     national_polling = pd.read_csv('processed_data/president_polls_daily.csv')
     state_polling = pd.read_csv('processed_data/processed_polls.csv')
 
-    # Convert date columns to datetime objects only once
-    national_polling['Date'] = pd.to_datetime(national_polling['Date'])
-    state_polling['end_date'] = pd.to_datetime(state_polling['end_date'])
+    # Convert date columns to datetime objects with specified format
+    national_polling['Date'] = pd.to_datetime(national_polling['Date'], format='%m/%d/%y')
+    state_polling['end_date'] = pd.to_datetime(state_polling['end_date'], format='%m/%d/%y')
 
     # Extract states excluding national results
     states = past_results.loc[past_results['Location'] != 'National', 'Location'].unique()
@@ -215,10 +227,21 @@ def create_state_polling_averages():
             biden_win_prob = norm.cdf(z_score)
             biden_win_probabilities.loc[date, state] = biden_win_prob
 
-    # Save results to CSV files
-    for df, filename in zip([biden_averages, trump_averages, biden_win_probabilities],
-                            ['biden_state_averages.csv', 'trump_state_averages.csv', 'biden_win_probabilities.csv']):
-        df.reset_index().rename(columns={'index': 'Date'}).to_csv(f'processed_data/{filename}', index=False)
+    # Insert results into the PostgreSQL database
+    print("Preparing to insert state polling averages into the database...")
+    with db_connection.cursor() as cursor:
+        for date in date_range:
+            for state in states:
+                # Prepare SQL insert statement
+                insert_query = """
+                INSERT INTO state_polling_averages (date, state, biden_average, trump_average, biden_win_probability, trump_win_probability)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                """
+                print(f"SQL Query: {insert_query}")
+                print(f"Data: {date}, {state}, {biden_averages.loc[date, state]}, {trump_averages.loc[date, state]}, {biden_win_probabilities.loc[date, state]}, {1 - biden_win_probabilities.loc[date, state]}")
+                cursor.execute(insert_query, (date, state, biden_averages.loc[date, state], trump_averages.loc[date, state], biden_win_probabilities.loc[date, state], 1 - biden_win_probabilities.loc[date, state]))
+        db_connection.commit()
+    print("State polling averages insertion committed.")
 
     # for all the states where biden is between 5% and 95% chance of winning, print them out and each candidates' win probability
     biden_win_probabilities = biden_win_probabilities.iloc[-1]
@@ -235,8 +258,10 @@ def simulate_electoral_votes():
     """
     Simulate the electoral vote outcomes using Biden's state win probabilities, accounting for correlations between states.
 
-    The results are saved to a CSV file.
+    The results are inserted into the PostgreSQL database.
     """
+    print("Simulating electoral votes...")
+
     # Load the electoral votes data and set the index
     electoral_votes = pd.read_csv('raw_data/raw_electoral_votes.csv')
     electoral_votes.set_index('Location', inplace=True)
@@ -253,10 +278,13 @@ def simulate_electoral_votes():
     # Set the number of simulations
     num_simulations = 10000
 
+    print(f"Number of simulations: {num_simulations}")
+
     results = []
 
     # Simulate electoral vote outcomes for each date
     for date in biden_win_probs['Date'].unique():
+        print(f"Simulating for date: {date}")
         daily_data = biden_win_probs[biden_win_probs['Date'] == date]
 
         state_indices = [states.index(state) for state in states if state in daily_data.columns]
@@ -264,7 +292,9 @@ def simulate_electoral_votes():
 
         # Generate correlated random outcomes based on win probabilities
         mean = np.arcsin(2 * win_probs - 1)  # Sin transformation for mean
+        print("Starting multivariate normal simulation...")
         correlated_normals = np.random.multivariate_normal(mean, correlation_matrix, size=num_simulations)
+        print("Multivariate normal simulation completed.")
         correlated_outcomes = (np.sin(correlated_normals) + 1) / 2 > 0.5  # Convert back to determine win/loss
 
         # Calculate electoral votes for each simulation
@@ -284,9 +314,29 @@ def simulate_electoral_votes():
             'Tie Probability': tie
         })
 
-    # Convert results to DataFrame and save to CSV
+    print("Electoral vote simulation completed.")
+
+    # Convert results to DataFrame
     results_df = pd.DataFrame(results)
-    results_df.to_csv('processed_data/simulated_national_election_outcomes_correlated.csv', index=False)
+
+    # Insert results into the PostgreSQL database
+    with db_connection.cursor() as cursor:
+        for result in results:
+            date = result['Date']
+            biden_wins = result['Biden Win Probability']
+            trump_wins = result['Trump Win Probability']
+            tie = result['Tie Probability']
+            # Prepare SQL insert statement
+            insert_query = """
+            INSERT INTO electoral_votes_simulations (simulation_date, biden_electoral_votes, trump_electoral_votes)
+            VALUES (%s, %s, %s)
+            """
+            print("Inserting electoral votes simulations into the database...")
+            print(f"SQL Query: {insert_query}")
+            print(f"Data: {date}, {biden_wins}, {trump_wins}")
+            cursor.execute(insert_query, (date, biden_wins, trump_wins))
+        db_connection.commit()
+        print("Electoral votes simulations insertion committed.")
 
     return [f"Biden has an {results[-1]['Biden Win Probability']:.2%} chance of winning the election, Trump has an {results[-1]['Trump Win Probability']:.2%} chance of winning the election, and there is an {results[-1]['Tie Probability']:.2%} chance of a tie.", f"Biden is expected to win {np.median([simulated_electoral_votes]):.0f} electoral votes, while Trump is expected to win {538 - np.median([simulated_electoral_votes]):.0f} electoral votes."]
 
@@ -304,8 +354,8 @@ def generate_plots(polling_data_file, probabilities_file):
     probabilities = pd.read_csv(probabilities_file)
 
     # Convert 'Date' columns to datetime format
-    polling_data['Date'] = pd.to_datetime(polling_data['Date'])
-    probabilities['Date'] = pd.to_datetime(probabilities['Date'])
+    polling_data['Date'] = pd.to_datetime(polling_data['Date'], format='%Y-%m-%d')
+    probabilities['Date'] = pd.to_datetime(probabilities['Date'], format='%Y-%m-%d')
 
     # Filter data for events starting from 2023
     polling_data = polling_data[polling_data['Date'] >= pd.Timestamp('2023-01-01')]
@@ -342,6 +392,7 @@ def generate_plots(polling_data_file, probabilities_file):
 
 
 def generate_map(state_probabilities, states_shapefile):
+    print("Function generate_map started.")
     """
     Generate a choropleth map visualizing the probabilities of a specified outcome by state.
 
@@ -394,38 +445,65 @@ def generate_map(state_probabilities, states_shapefile):
 
 
 def do_work():
+    print("Function do_work started.")
     url = "https://projects.fivethirtyeight.com/polls/data/president_polls.csv"
     processed_file = 'processed_data/processed_polls.csv'
     output_file = 'processed_data/president_polls_daily.csv'
 
     storage = []
 
-    get_polling_data(url, processed_file)
-    print("Polling data downloaded and processed.")
+    print("Calling get_polling_data.")
+    try:
+        get_polling_data(url, processed_file)
+        print("Polling data downloaded and processed.")
+    except Exception as e:
+        print(f"Error in get_polling_data: {e}")
 
-    polling_averages_string = create_national_polling_averages(processed_file, output_file)
-    storage.append(polling_averages_string)
-    print("National polling averages calculated.")
+    print("Calling create_national_polling_averages.")
+    try:
+        polling_averages_string = create_national_polling_averages(processed_file)
+        storage.append(polling_averages_string)
+        print("National polling averages calculated.")
+    except Exception as e:
+        print(f"Error in create_national_polling_averages: {e}")
 
-    close_states_string = create_state_polling_averages()
-    storage.append(close_states_string)
-    print("State polling averages calculated.")
+    print("Calling create_state_polling_averages.")
+    try:
+        close_states_string = create_state_polling_averages()
+        storage.append(close_states_string)
+        print("State polling averages calculated.")
+    except Exception as e:
+        print(f"Error in create_state_polling_averages: {e}")
 
-    electoral_college_votes_list = simulate_electoral_votes()
-    storage.extend(electoral_college_votes_list)
-    print("Electoral votes simulated.")
+    print("Calling simulate_electoral_votes.")
+    try:
+        electoral_college_votes_list = simulate_electoral_votes()
+        storage.extend(electoral_college_votes_list)
+        print("Electoral votes simulated.")
+    except Exception as e:
+        print(f"Error in simulate_electoral_votes: {e}")
 
-    generate_plots('processed_data/president_polls_daily.csv', 'processed_data/simulated_national_election_outcomes_correlated.csv')
-    print("Polling data plots generated.")
+    print("Calling generate_plots.")
+    try:
+        generate_plots('processed_data/president_polls_daily.csv', 'processed_data/simulated_national_election_outcomes_correlated.csv')
+        print("Polling data plots generated.")
+    except Exception as e:
+        print(f"Error in generate_plots: {e}")
 
-    generate_map('processed_data/biden_win_probabilities.csv', 'raw_data/cb_2023_us_state_500k.shp')
-    print("Map generated.")
+    print("Calling generate_map.")
+    try:
+        generate_map('processed_data/biden_win_probabilities.csv', 'raw_data/cb_2023_us_state_500k.shp')
+        print("Map generated.")
+    except Exception as e:
+        print(f"Error in generate_map: {e}")
 
-    # create the file if it doesn't exist
-    
-    # save storage to a csv file
-    with open('static/work_log.csv', 'w', newline='') as f:
-        writer = csv.writer(f)
+    # Insert summary into the PostgreSQL database
+    with db_connection.cursor() as cursor:
         for item in storage:
-            writer.writerow([item])  # Write each item as its own row
+            cursor.execute("INSERT INTO work_log (summary) VALUES (%s)", (item,))
+        db_connection.commit()
+    print("Summary data inserted into the database.")
+
+if __name__ == "__main__":
+    do_work()
     
