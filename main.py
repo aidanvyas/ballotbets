@@ -15,7 +15,7 @@ scheduler = BackgroundScheduler()
 scheduler.add_job(func=schedule_tasks,
                   trigger=DateTrigger(run_date=datetime.now()))
 
-scheduler.add_job(func=schedule_tasks, trigger='interval', minutes=15)
+scheduler.add_job(func=schedule_tasks, trigger='interval', minutes=15, max_instances=2)
 
 scheduler.start()
 

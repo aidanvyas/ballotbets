@@ -159,7 +159,7 @@ def create_state_polling_averages():
 
     # Define date range for averaging
     start_date = national_polling['Date'].min() + timedelta(days=14)
-    end_date = national_polling['Date'].max()
+    end_date = state_polling['end_date'].max()
     date_range = pd.date_range(start=start_date, end=end_date)
 
     # Pre-calculate national past results for optimization
@@ -311,9 +311,6 @@ def generate_plots(polling_data_file, probabilities_file):
     polling_data = polling_data[polling_data['Date'] >= pd.Timestamp('2023-01-01')]
     probabilities = probabilities[probabilities['Date'] >= pd.Timestamp('2023-01-01')]
 
-    # Ensure the output directory exists
-    os.makedirs('plots', exist_ok=True)
-
     # Plot national polling averages
     plt.figure(figsize=(12, 8))
     plt.plot(polling_data['Date'], polling_data['Joe Biden'], label='Joe Biden', color='blue')
@@ -325,7 +322,7 @@ def generate_plots(polling_data_file, probabilities_file):
     plt.grid(True)
     plt.ylim([min(polling_data['Joe Biden'].min(), polling_data['Donald Trump'].min()) - 5,
               max(polling_data['Joe Biden'].max(), polling_data['Donald Trump'].max()) + 5])
-    plt.savefig('plots/national_polling_averages.png')
+    plt.savefig('static/plots/national_polling_averages.png')
 
     # Plot electoral college probabilities
     plt.figure(figsize=(12, 8))
@@ -338,7 +335,7 @@ def generate_plots(polling_data_file, probabilities_file):
     plt.legend()
     plt.grid(True)
     plt.ylim(0, 100)
-    plt.savefig('plots/election_win_probabilities.png')
+    plt.savefig('static/plots/election_win_probabilities.png')
 
 
 def generate_map(state_probabilities, states_shapefile):
@@ -386,11 +383,8 @@ def generate_map(state_probabilities, states_shapefile):
     ax.axis('off')
     plt.tight_layout()
 
-    # Ensure the output directory exists
-    os.makedirs('plots', exist_ok=True)
-
     # Save the map to a file
-    plt.savefig('plots/win_probability_map.png', dpi=1000, bbox_inches='tight')
+    plt.savefig('static/plots/win_probability_map.png', dpi=1000, bbox_inches='tight')
 
 
 def do_work():
