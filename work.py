@@ -25,6 +25,8 @@ import numpy as np
 import pandas as pd
 import requests
 from scipy.stats import norm
+import json
+import psycopg2
 
 # Constants
 LAMBDA = 0.0619
@@ -421,11 +423,24 @@ def do_work():
     generate_map('processed_data/biden_win_probabilities.csv', 'raw_data/cb_2023_us_state_500k.shp')
     print("Map generated.")
 
-    # create the file if it doesn't exist
-    
-    # save storage to a csv file
-    with open('static/work_log.csv', 'w', newline='') as f:
-        writer = csv.writer(f)
-        for item in storage:
-            writer.writerow([item])  # Write each item as its own row
+    # Connect to the PostgreSQL database using psycopg2 and handle any potential errors
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        cur = conn.cursor()
+
+        # Prepare the data for insertion
+        # Assuming 'storage' is a list of strings that need to be inserted as JSON data
+        data_to_insert = [{"data": item} for item in storage]
+
+        # Insert data into the work_log table
+        for entry in data_to_insert:
+            cur.execute("INSERT INTO work_log (timestamp, data) VALUES (NOW(), %s)", [json.dumps(entry)])
+
+        # Commit the changes and close the connection
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"An error occurred while interacting with the database: {e}")
+        # Optionally, add additional error handling logic here
     
