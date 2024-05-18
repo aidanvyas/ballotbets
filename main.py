@@ -4,7 +4,7 @@ from apscheduler.triggers.date import DateTrigger
 import psycopg2
 import os
 from datetime import datetime, timedelta
-from work import do_work  # Importing do_work from work.py
+from work import do_work
 
 app = Flask(__name__)
 
@@ -51,5 +51,5 @@ def methodology():
     return render_template('methodology.html')
 
 if __name__ == '__main__':
-    load_insights()  # Initial load of insights
+    load_insights()
     app.run(host='0.0.0.0', port=80)
