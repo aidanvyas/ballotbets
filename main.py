@@ -8,15 +8,14 @@ import csv
 app = Flask(__name__)
 
 def schedule_tasks():
-    do_work()
+    try:
+        do_work()
+    finally:
+        # Schedule the next run after the current one finishes
+        scheduler.add_job(func=schedule_tasks, trigger=DateTrigger(run_date=datetime.now()))
 
 scheduler = BackgroundScheduler()
-
-scheduler.add_job(func=schedule_tasks,
-                  trigger=DateTrigger(run_date=datetime.now()))
-
-scheduler.add_job(func=schedule_tasks, trigger='interval', minutes=15)
-
+scheduler.add_job(func=schedule_tasks, trigger=DateTrigger(run_date=datetime.now()))
 scheduler.start()
 
 @app.route('/')
