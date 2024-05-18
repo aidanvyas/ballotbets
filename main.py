@@ -4,7 +4,7 @@ from apscheduler.triggers.date import DateTrigger
 import psycopg2
 import os
 from datetime import datetime, timedelta
-from work import do_work  # Importing do_work from work.py
+from work import do_work
 
 app = Flask(__name__)
 

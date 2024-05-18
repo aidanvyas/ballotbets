@@ -9,7 +9,8 @@
 
     <div class="insight-section">
         {% if insights.simulations_summary %}
-            <img src="{{ url_for('static', filename='plots/election_win_probabilities.png') }}" alt="Election Win Probabilities" class="main-image">
+        <img src="{{ url_for('static', filename='plots/election_win_probabilities.png') }}" alt="Election Win Probabilities" class="main-image">
+
             <p>{{ insights.electoral_college_votes|join(', ') }}</p>
             <p>{{ insights.simulations_summary|join(', ') }}</p>
         {% else %}
