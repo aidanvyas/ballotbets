@@ -16,6 +16,7 @@ requests = "^2.31.0"
 apscheduler = "^3.10.4"
 matplotlib = "^3.8.4"
 scipy = "^1.13.0"
+psycopg2-binary = "^2.9.9"
 
 [tool.pyright]
 # https://github.com/microsoft/pyright/blob/main/docs/configuration.md
