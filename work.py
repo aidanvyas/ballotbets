@@ -389,6 +389,10 @@ def generate_map(state_probabilities, states_shapefile):
     plt.savefig('static/plots/win_probability_map.png', dpi=1000, bbox_inches='tight')
 
 
+import os
+import json
+import psycopg2
+
 def do_work():
     url = "https://projects.fivethirtyeight.com/polls/data/president_polls.csv"
     processed_file = 'processed_data/processed_polls.csv'
@@ -419,6 +423,7 @@ def do_work():
 
     # Connect to the PostgreSQL database using psycopg2 and handle any potential errors
     try:
+        DATABASE_URL = os.environ['DATABASE_URL']
         conn = psycopg2.connect(DATABASE_URL)
         cur = conn.cursor()
 
