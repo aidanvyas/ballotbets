@@ -27,6 +27,7 @@ import requests
 from scipy.stats import norm
 import json
 import psycopg2
+import traceback
 
 # Constants
 LAMBDA = 0.0619
@@ -446,5 +447,6 @@ def do_work():
         conn.close()
     except Exception as e:
         print(f"An error occurred while interacting with the database: {e}")
-        # Optionally, add additional error handling logic here
-    
+        traceback.print_exc()
+            
+        
