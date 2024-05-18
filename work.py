@@ -428,13 +428,18 @@ def do_work():
         conn = psycopg2.connect(DATABASE_URL)
         cur = conn.cursor()
 
-        # Prepare the data for insertion
-        # Assuming 'storage' is a list of strings that need to be inserted as JSON data
-        data_to_insert = [{"data": item} for item in storage]
+        # Prepare the data for insertion as a dictionary matching the template's expected structure
+        insights_data = {
+            "simulations_summary": [electoral_college_votes_list[0]],
+            "close_states": [close_states_string],
+            "polling_averages": [polling_averages_string]
+        }
 
-        # Insert data into the work_log table
-        for entry in data_to_insert:
-            cur.execute("INSERT INTO work_log (timestamp, data) VALUES (NOW(), %s)", [json.dumps(entry)])
+        # Insert data into the work_log table as a single JSON entry
+        try:
+            cur.execute("INSERT INTO work_log (timestamp, data) VALUES (NOW(), %s)", [json.dumps(insights_data)])
+        except Exception as e:
+            print(f"An error occurred while inserting insights into the database: {e}")
 
         # Commit the changes and close the connection
         conn.commit()
