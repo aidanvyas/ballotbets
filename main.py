@@ -29,7 +29,7 @@ def load_insights():
     except Exception as e:
         print(f"Failed to load insights from the database: {e}")
 
-    app.config['INSIGHTS'] = insights
+    return insights
 
 def schedule_tasks():
     try:
@@ -44,12 +44,13 @@ scheduler.start()
 
 @app.route('/')
 def home():
-    return render_template('home.html', insights=app.config.get('INSIGHTS', {}))
+    # Call load_insights to ensure the most recent data is displayed
+    insights = load_insights()
+    return render_template('home.html', insights=insights)
 
 @app.route('/methodology')
 def methodology():
     return render_template('methodology.html')
 
 if __name__ == '__main__':
-    load_insights()  # Initial load of insights
     app.run(host='0.0.0.0', port=80)
