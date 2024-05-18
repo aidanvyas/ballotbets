@@ -3,7 +3,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.date import DateTrigger
 import psycopg2
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from work import do_work  # Importing do_work from work.py
 
 app = Flask(__name__)
@@ -35,8 +35,8 @@ def schedule_tasks():
     try:
         do_work()
     finally:
-        # Schedule the next run after the current one finishes
-        scheduler.add_job(func=schedule_tasks, trigger=DateTrigger(run_date=datetime.now()))
+        # Schedule the next run after the current one finishes, with a delay
+        scheduler.add_job(func=schedule_tasks, trigger=DateTrigger(run_date=datetime.now() + timedelta(minutes=1)))
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(func=schedule_tasks, trigger=DateTrigger(run_date=datetime.now()))
