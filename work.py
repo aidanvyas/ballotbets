@@ -28,9 +28,9 @@ import requests
 from scipy.stats import norm
 import logging
 
-# Configure logging to capture all output and warnings
+# Configure logging to capture all output and warnings at the DEBUG level
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='%(asctime)s %(levelname)s: %(message)s',
     handlers=[
         logging.FileHandler('work_log_output.log'),
@@ -38,7 +38,7 @@ logging.basicConfig(
     ]
 )
 
-logging.info("Script execution started.")
+logging.debug("Script execution initiated.")
 
 # Replace all print statements with logging.info calls throughout the script
 # to ensure all output is captured in the log file as well as the console.
@@ -59,6 +59,8 @@ def get_polling_data(url, output_file):
         url (str): The URL of the CSV file to download.
         output_file (str): The path to save the downloaded CSV file.
     """
+    print("Entering get_polling_data function.")
+    logging.debug("Entering get_polling_data function.")
     # Get the polling data from the URL.
     response = requests.get(url)
 
@@ -84,8 +86,9 @@ def get_polling_data(url, output_file):
     # Merge the unique poll details with the candidate percentages.
     merged_poll_data = pd.merge(unique_poll_details, candidate_percentages, on='poll_id', how='left')
 
-    # Fill missing values with 0.
-    merged_poll_data.fillna(0, inplace=True)
+    # Fill missing values with 0 and infer the most appropriate data types automatically.
+    merged_poll_data.fillna(0, downcast='infer', inplace=True)
+    logging.info(f"After fillna and downcast='infer', 'end_date' has {merged_poll_data['end_date'].isna().sum()} 'NaT' values.")
 
     # Rename the columns for consistency.
     merged_poll_data = merged_poll_data[
@@ -103,9 +106,11 @@ def get_polling_data(url, output_file):
 
     # Save the processed polling data to a CSV file.
     merged_poll_data.to_csv(output_file, index=False)
+    print("Exiting get_polling_data function.")
 
 
 def create_national_polling_averages(input_file, output_file):
+    print("Entering create_national_polling_averages function.")
     """
     Process polling data from a CSV file to calculate and save daily weighted averages for the candidates along with their win probabilities.
 
@@ -121,20 +126,47 @@ def create_national_polling_averages(input_file, output_file):
     # Filter to include only national polls.
     polling_data = polling_data[polling_data['state'] == '0']
 
-    # Convert 'end_date' to a datetime object and set date range
-    polling_data['end_date'] = pd.to_datetime(polling_data['end_date'], errors='coerce', format='%Y-%m-%d')
-    # Remove any rows with NaT in 'end_date' after coercion
+    # Clean 'end_date' column to ensure consistent date format
+    # Add leading zeros to single-digit months/days and convert two-digit years to four-digit years
+    # Assuming any year below 30 should be treated as 2000s, otherwise 1900s
+    polling_data['end_date'] = polling_data['end_date'].str.replace(r'(?<!\d)(\d{1,2})/(?<!\d)(\d{1,2})/(?=\d{2}(?!\d))', r'0\1/0\2/', regex=True)
+    polling_data['end_date'] = polling_data['end_date'].str.replace(r'(?<!\d)(\d{1,2})/(?=\d{2}/\d{2}(?!\d))', r'0\1/', regex=True)
+    polling_data['end_date'] = polling_data['end_date'].str.replace(r'(?<=/\d{2}/)(\d{2})(?!\d)', lambda x: '20' + x.group(0) if int(x.group(0)) < 30 else '19' + x.group(0), regex=True)
+
+    # Log the state of the 'end_date' column before conversion
+    logging.info(f"'end_date' column before conversion:\n{polling_data['end_date'].head()}")
+
+    try:
+        # Convert 'end_date' to datetime objects, coercing errors to 'NaT'
+        polling_data['end_date'] = pd.to_datetime(polling_data['end_date'], errors='coerce', format='%m/%d/%y')
+        logging.info(f"Converted 'end_date' to datetime, resulting in {polling_data['end_date'].isna().sum()} 'NaT' values before removal.")
+    except Exception as e:
+        logging.error(f"Error converting 'end_date' to datetime: {e}")
+
+    # Log the state of the data after conversion
+    logging.info(f"DataFrame after 'end_date' conversion:\n{polling_data.head()}")
+    logging.info(f"Converted 'end_date' to datetime, resulting in {polling_data['end_date'].isna().sum()} 'NaT' values before removal.")
+
+    # Remove rows with 'NaT' values to ensure further processing only includes valid dates
     polling_data = polling_data.dropna(subset=['end_date'])
+    logging.info(f"DataFrame after removing 'NaT' values:\n{polling_data}")
+    logging.info(f"Remaining 'NaT' values count: {polling_data['end_date'].isna().sum()}")
+    logging.info(f"Remaining rows count: {len(polling_data)}")
 
-    # Check if there are any rows left after removing NaT values
-    if polling_data.empty:
-        logging.error("No valid date data available after removing NaT values.")
-        return "Error: No valid date data available after removing NaT values."
+    # Ensure that the date range is created from valid dates only
+    first_end_date = polling_data['end_date'].min()
+    last_end_date = polling_data['end_date'].max()
 
-    first_end_date = polling_data['end_date'].min() + pd.Timedelta(days=1)
-    last_end_date = polling_data['end_date'].max() + pd.Timedelta(days=1)
+    # Log the min and max dates to ensure they are not NaT
+    logging.info(f"First end date: {first_end_date}, Last end date: {last_end_date}")
 
+    # If either the first or last end date is NaT, log an error and do not attempt to create a date range
+    if pd.isna(first_end_date) or pd.isna(last_end_date):
+        logging.error("Cannot create date range with NaT values for start or end date.")
+        return "Error: Cannot create date range with NaT values for start or end date."
+    # Create the date range only if both first and last end dates are valid
     dates = pd.date_range(start=first_end_date, end=last_end_date)
+    logging.info(f"Created date range from {first_end_date} to {last_end_date}")
 
     # Initialize output file and write the header.
     header = "Date,Joe Biden,Donald Trump,Joe Biden Win Probability,Donald Trump Win Probability\n"
@@ -166,6 +198,7 @@ def create_national_polling_averages(input_file, output_file):
         with open(output_file, 'a') as file:
             file.write(results)
 
+    print("Exiting create_national_polling_averages function.")
     return f"Biden is currently polling at {biden_avg / 100:.2%}, while Trump is at {trump_avg / 100:.2%}."
 
 
@@ -174,6 +207,7 @@ def create_state_polling_averages():
     Calculate state-level polling averages and win probabilities based on national and state polls.
     This function adjusts shares and boost factors according to past election results and saves the outputs to CSV files.
     """
+    print("Entering create_state_polling_averages function.")
     # Load data from CSV files
     past_results = pd.read_csv('raw_data/raw_past_results.csv')
     national_polling = pd.read_csv('processed_data/president_polls_daily.csv')
@@ -276,6 +310,7 @@ def simulate_electoral_votes():
 
     The results are saved to a CSV file.
     """
+    print("Entering simulate_electoral_votes function.")
     # Load the electoral votes data and set the index
     electoral_votes = pd.read_csv('raw_data/raw_electoral_votes.csv')
     electoral_votes.set_index('Location', inplace=True)
@@ -327,6 +362,7 @@ def simulate_electoral_votes():
     results_df = pd.DataFrame(results)
     results_df.to_csv('processed_data/simulated_national_election_outcomes_correlated.csv', index=False)
 
+    print("Exiting simulate_electoral_votes function.")
     return [f"Biden has an {results[-1]['Biden Win Probability']:.2%} chance of winning the election, Trump has an {results[-1]['Trump Win Probability']:.2%} chance of winning the election, and there is an {results[-1]['Tie Probability']:.2%} chance of a tie.", f"Biden is expected to win {np.median([simulated_electoral_votes]):.0f} electoral votes, while Trump is expected to win {538 - np.median([simulated_electoral_votes]):.0f} electoral votes."]
 
 
@@ -338,6 +374,7 @@ def generate_plots(polling_data_file, probabilities_file):
         polling_data_file (str): Path to the CSV file containing the polling data.
         probabilities_file (str): Path to the CSV file containing the election probabilities.
     """
+    print("Entering generate_plots function.")
     # Read the data from CSV files
     polling_data = pd.read_csv(polling_data_file)
     probabilities = pd.read_csv(probabilities_file)
@@ -375,6 +412,7 @@ def generate_plots(polling_data_file, probabilities_file):
     plt.grid(True)
     plt.ylim(0, 100)
     plt.savefig('static/plots/election_win_probabilities.png')
+    print("Exiting generate_plots function.")
 
 
 def generate_map(state_probabilities, states_shapefile):
@@ -398,7 +436,7 @@ def generate_map(state_probabilities, states_shapefile):
 
     # Merge and prepare states data
     states_data = states.merge(last_row, on='State', how='left')
-    states_data['Probability'] = states_data['Probability'].fillna(0).infer_objects()
+    states_data['Probability'] = states_data['Probability'].fillna(0, downcast='infer')
 
     # Define colors
     white = '#FFFFFF'
@@ -424,48 +462,52 @@ def generate_map(state_probabilities, states_shapefile):
 
     # Save the map to a file
     plt.savefig('static/plots/win_probability_map.png', dpi=1000, bbox_inches='tight')
-
+    print("Exiting generate_map function.")
 
 def do_work():
-    logging.info("Starting do_work function.")
-    url = "https://projects.fivethirtyeight.com/polls/data/president_polls.csv"
-    processed_file = 'processed_data/processed_polls.csv'
-    output_file = 'processed_data/president_polls_daily.csv'
+    print("Entering do_work function.")
+    try:
+        logging.debug("do_work function execution started.")
+        logging.info("Starting do_work function.")
+        url = "https://projects.fivethirtyeight.com/polls/data/president_polls.csv"
+        processed_file = 'processed_data/processed_polls.csv'
+        output_file = 'processed_data/president_polls_daily.csv'
 
-    storage = []
+        storage = []
 
-    get_polling_data(url, processed_file)
-    logging.info("Polling data downloaded and processed.")
+        get_polling_data(url, processed_file)
+        logging.info("Polling data downloaded and processed.")
 
-    polling_averages_string = create_national_polling_averages(processed_file, output_file)
-    if "ERROR" in polling_averages_string:
-        logging.error(polling_averages_string)
-        return
-    storage.append(polling_averages_string)
-    logging.info("National polling averages calculated.")
+        polling_averages_string = create_national_polling_averages(processed_file, output_file)
+        if "ERROR" in polling_averages_string:
+            logging.error(polling_averages_string)
+            return
+        storage.append(polling_averages_string)
+        logging.info("National polling averages calculated.")
 
-    close_states_string = create_state_polling_averages()
-    if "ERROR" in close_states_string:
-        logging.error(close_states_string)
-        return
-    storage.append(close_states_string)
-    logging.info("State polling averages calculated.")
+        close_states_string = create_state_polling_averages()
+        if "ERROR" in close_states_string:
+            logging.error(close_states_string)
+            return
+        storage.append(close_states_string)
+        logging.info("State polling averages calculated.")
 
-    electoral_college_votes_list = simulate_electoral_votes()
-    storage.extend(electoral_college_votes_list)
-    logging.info("Electoral votes simulated.")
+        electoral_college_votes_list = simulate_electoral_votes()
+        storage.extend(electoral_college_votes_list)
+        logging.info("Electoral votes simulated.")
 
-    generate_plots('processed_data/president_polls_daily.csv', 'processed_data/simulated_national_election_outcomes_correlated.csv')
-    logging.info("Polling data plots generated.")
+        generate_plots('processed_data/president_polls_daily.csv', 'processed_data/simulated_national_election_outcomes_correlated.csv')
+        logging.info("Polling data plots generated.")
 
-    generate_map('processed_data/biden_win_probabilities.csv', 'raw_data/cb_2023_us_state_500k.shp')
-    logging.info("Map generated.")
+        generate_map('processed_data/biden_win_probabilities.csv', 'raw_data/cb_2023_us_state_500k.shp')
+        logging.info("Map generated.")
 
-    # create the file if it doesn't exist
+        # create the file if it doesn't exist
 
-    # save storage to a csv file
-    with open('static/work_log.csv', 'w', newline='') as f:
-        writer = csv.writer(f)
-        for item in storage:
-            writer.writerow([item])  # Write each item as its own row
-    
+        # save storage to a csv file
+        with open('static/work_log.csv', 'w', newline='') as f:
+            writer = csv.writer(f)
+            for item in storage:
+                writer.writerow([item])  # Write each item as its own row
+    except Exception as e:
+        logging.error(f"An error occurred: {e}", exc_info=True)
