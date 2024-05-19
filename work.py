@@ -16,7 +16,6 @@ import io
 import os
 import time
 from datetime import timedelta
-
 import csv
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -28,6 +27,7 @@ import json
 import psycopg2
 import traceback
 import logging  # Added import for logging
+from typing import List  # Added import for List type hinting
 
 # Constants
 LAMBDA = 0.0619
