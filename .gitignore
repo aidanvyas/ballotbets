@@ -162,3 +162,5 @@ cython_debug/
 # Generated data files
 processed_data/simulated_national_election_outcomes_correlated.csv
 static/plots/election_win_probabilities.png
+processed_data/*.csv
+static/plots/*.png
