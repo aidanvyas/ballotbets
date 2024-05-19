@@ -218,7 +218,6 @@ def create_state_polling_averages():
     Calculate state-level polling averages and win probabilities based on national and state polls.
     This function adjusts shares and boost factors according to past election results and saves the outputs to CSV files.
     """
-    print("Entering create_state_polling_averages function.")
     logging.debug("Entering create_state_polling_averages function.")
     # Load data from CSV files
     past_results = pd.read_csv('raw_data/raw_past_results.csv')
