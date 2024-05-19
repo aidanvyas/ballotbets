@@ -136,22 +136,18 @@ def create_national_polling_averages(input_file, output_file):
     # Log the state of the 'end_date' column before conversion
     logging.info(f"'end_date' column before conversion:\n{polling_data['end_date'].head()}")
 
-    try:
-        # Convert 'end_date' to datetime objects, coercing errors to 'NaT'
-        polling_data['end_date'] = pd.to_datetime(polling_data['end_date'], errors='coerce', format='%m/%d/%y')
-        logging.info(f"Converted 'end_date' to datetime, resulting in {polling_data['end_date'].isna().sum()} 'NaT' values before removal.")
-    except Exception as e:
-        logging.error(f"Error converting 'end_date' to datetime: {e}")
-
-    # Log the state of the data after conversion
-    logging.info(f"DataFrame after 'end_date' conversion:\n{polling_data.head()}")
+    # Convert 'end_date' to datetime objects, coercing errors to 'NaT'
+    polling_data['end_date'] = pd.to_datetime(polling_data['end_date'], errors='coerce', format='%m/%d/%y')
     logging.info(f"Converted 'end_date' to datetime, resulting in {polling_data['end_date'].isna().sum()} 'NaT' values before removal.")
 
-    # Remove rows with 'NaT' values to ensure further processing only includes valid dates
+    # Remove rows with 'NaT' values in 'end_date'
     polling_data = polling_data.dropna(subset=['end_date'])
-    logging.info(f"DataFrame after removing 'NaT' values:\n{polling_data}")
-    logging.info(f"Remaining 'NaT' values count: {polling_data['end_date'].isna().sum()}")
-    logging.info(f"Remaining rows count: {len(polling_data)}")
+    logging.info(f"Removed 'NaT' values, resulting in {polling_data['end_date'].isna().sum()} 'NaT' values after removal.")
+
+    # Ensure there are valid dates for creating the date range
+    if polling_data['end_date'].isna().any():
+        logging.error("Cannot create date range with 'NaT' values for 'end_date'")
+        return "ERROR: Invalid date data in 'end_date' column after removal of 'NaT' values."
 
     # Ensure that the date range is created from valid dates only
     first_end_date = polling_data['end_date'].min()
