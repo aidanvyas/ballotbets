@@ -6,7 +6,6 @@ standard deviation for the exponential function used to calculate the weighted
 average of polling data.
 """
 
-
 import time
 
 import numpy as np
@@ -27,14 +26,14 @@ def determine_optimal_lambda():
         float: The average of the best lambda values for R^2 and MAE.
     """
     # Load the data from the CSV file.
-    data = pd.read_csv('raw_polls.csv')
+    data = pd.read_csv("raw_polls.csv")
 
     # Define a range of lambda values to test
     lambda_values = [i / 10000 for i in range(0, 10001)]
 
     # Initialize variables to store the best lambdas and their corresponding metrics
     best_lambda_r2, best_lambda_mae = None, None
-    highest_r2, lowest_mae = float('-inf'), float('inf')
+    highest_r2, lowest_mae = float("-inf"), float("inf")
 
     # Lists to store R^2 and MAE values for each lambda
     r2_values, mae_values = [], []
@@ -44,13 +43,15 @@ def determine_optimal_lambda():
         predicted_values, actual_values = [], []
 
         # Group the data by 'race' and perform calculations
-        for race, group in data.groupby('race'):
-            group['weight'] = np.exp(-lambda_ * group['time_to_election']) * np.sqrt(group['samplesize'])
-            group['weight'] /= group['weight'].sum()
-            weighted_avg = (group['margin_poll'] * group['weight']).sum()
+        for race, group in data.groupby("race"):
+            group["weight"] = np.exp(-lambda_ * group["time_to_election"]) * np.sqrt(
+                group["samplesize"]
+            )
+            group["weight"] /= group["weight"].sum()
+            weighted_avg = (group["margin_poll"] * group["weight"]).sum()
 
             predicted_values.append(weighted_avg)
-            actual_values.append(group['margin_actual'].mean())
+            actual_values.append(group["margin_actual"].mean())
 
         # Calculate R^2 and MAE for this lambda
         r2 = r2_score(actual_values, predicted_values)
@@ -74,16 +75,16 @@ def determine_optimal_lambda():
     # Optional: Plotting the R^2 and MAE values against lambda
     plt.figure(figsize=(10, 5))
     plt.subplot(1, 2, 1)
-    plt.plot(lambda_values, r2_values, marker='o')
-    plt.title('R^2 values')
-    plt.xlabel('Lambda')
-    plt.ylabel('R^2')
+    plt.plot(lambda_values, r2_values, marker="o")
+    plt.title("R^2 values")
+    plt.xlabel("Lambda")
+    plt.ylabel("R^2")
 
     plt.subplot(1, 2, 2)
-    plt.plot(lambda_values, mae_values, marker='o')
-    plt.title('MAE values')
-    plt.xlabel('Lambda')
-    plt.ylabel('MAE')
+    plt.plot(lambda_values, mae_values, marker="o")
+    plt.title("MAE values")
+    plt.xlabel("Lambda")
+    plt.ylabel("MAE")
 
     plt.tight_layout()
     plt.show()
@@ -105,28 +106,34 @@ def determine_optimal_standard_deviation():
         float: The standard deviation of the absolute differences.
     """
     # Load data from CSV file
-    data = pd.read_csv('raw_data/raw_polls.csv')
+    data = pd.read_csv("raw_data/raw_polls.csv")
 
     results = []
 
     # Calculate weighted averages and actual results for each race
-    for race, group in data.groupby('race'):
+    for race, group in data.groupby("race"):
         # Apply exponential decay to calculate weights
-        group['weight'] = np.exp(-0.0619 * group['time_to_election']) * np.sqrt(group['samplesize'])
-        group['weight'] /= group['weight'].sum()  # Normalize the weights
+        group["weight"] = np.exp(-0.0619 * group["time_to_election"]) * np.sqrt(
+            group["samplesize"]
+        )
+        group["weight"] /= group["weight"].sum()  # Normalize the weights
 
         # Calculate the weighted average of 'margin_poll'
-        weighted_avg = (group['margin_poll'] * group['weight']).sum()
-        actual_result = group['margin_actual'].mean()  # Get the actual result
+        weighted_avg = (group["margin_poll"] * group["weight"]).sum()
+        actual_result = group["margin_actual"].mean()  # Get the actual result
 
         # Store race, weighted average, and actual result
         results.append([race, weighted_avg, actual_result])
 
     # Create DataFrame from results
-    results_df = pd.DataFrame(results, columns=['race', 'weighted_avg', 'actual_result'])
+    results_df = pd.DataFrame(
+        results, columns=["race", "weighted_avg", "actual_result"]
+    )
 
     # Compute the standard deviation of absolute differences
-    std_abs_diff = np.abs(results_df['weighted_avg'] - results_df['actual_result']).std()
+    std_abs_diff = np.abs(
+        results_df["weighted_avg"] - results_df["actual_result"]
+    ).std()
 
     return std_abs_diff
 
