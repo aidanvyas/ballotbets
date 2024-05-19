@@ -105,14 +105,10 @@ def create_national_polling_averages(input_file, output_file):
     # Filter to include only national polls.
     polling_data = polling_data[polling_data['state'] == '0']
 
-    # Convert 'end_date' to a datetime object and set date range, with error handling for parsing
-    try:
-        polling_data['end_date'] = pd.to_datetime(polling_data['end_date'])
-    except ValueError as e:
-        warnings.warn(f"Date parsing error: {e}")
-        # Handle the error by setting a default date or taking other appropriate action
-        # For the purpose of this example, we'll set a default date, but this should be tailored to the application's needs
-        polling_data['end_date'] = pd.to_datetime('1970-01-01')
+    # Convert 'end_date' to a datetime object and set date range
+    polling_data['end_date'] = pd.to_datetime(polling_data['end_date'], errors='coerce', format='%Y-%m-%d')
+    # Remove any rows with NaT in 'end_date' after coercion
+    polling_data = polling_data.dropna(subset=['end_date'])
     first_end_date = polling_data['end_date'].min() + pd.Timedelta(days=1)
     last_end_date = polling_data['end_date'].max() + pd.Timedelta(days=1)
     dates = pd.date_range(start=first_end_date, end=last_end_date)
