@@ -398,7 +398,7 @@ def generate_map(state_probabilities, states_shapefile):
 
     # Merge and prepare states data
     states_data = states.merge(last_row, on='State', how='left')
-    states_data['Probability'] = states_data['Probability'].fillna(0)
+    states_data['Probability'] = states_data['Probability'].fillna(0).infer_objects()
 
     # Define colors
     white = '#FFFFFF'
@@ -438,10 +438,16 @@ def do_work():
     logging.info("Polling data downloaded and processed.")
 
     polling_averages_string = create_national_polling_averages(processed_file, output_file)
+    if "ERROR" in polling_averages_string:
+        logging.error(polling_averages_string)
+        return
     storage.append(polling_averages_string)
     logging.info("National polling averages calculated.")
 
     close_states_string = create_state_polling_averages()
+    if "ERROR" in close_states_string:
+        logging.error(close_states_string)
+        return
     storage.append(close_states_string)
     logging.info("State polling averages calculated.")
 
