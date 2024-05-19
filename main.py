@@ -6,35 +6,37 @@ import os
 from datetime import datetime, timedelta
 from work import do_work, generate_map
 import tempfile
+import logging
 
 app = Flask(__name__)
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 
 def load_insights():
-    # Connect to the PostgreSQL database using psycopg2
+    """
+    Connect to the PostgreSQL database and fetch the latest entry from the work_log table.
+    Returns the insights as a dictionary.
+    """
     DATABASE_URL = os.environ["DATABASE_URL"]
     insights = {}
-    try:
-        conn = psycopg2.connect(DATABASE_URL)
-        cur = conn.cursor()
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as cur:
+            try:
+                # Fetch the latest entry from the work_log table
+                cur.execute("SELECT data FROM work_log ORDER BY id DESC LIMIT 1")
+                latest_entry = cur.fetchone()
 
-        # Fetch the latest entry from the work_log table
-        cur.execute("SELECT data FROM work_log ORDER BY id DESC LIMIT 1")
-        latest_entry = cur.fetchone()
-
-        # Parse the latest entry for insights
-        insights = latest_entry[0] if latest_entry else {}
-
-        # Close the connection
-        cur.close()
-        conn.close()
-    except Exception as e:
-        print(f"Failed to load insights from the database: {e}")
-
+                # Parse the latest entry for insights
+                insights = latest_entry[0] if latest_entry else {}
+            except Exception as e:
+                logging.error(f"Failed to load insights from the database: {e}")
     return insights
 
-
 def schedule_tasks():
+    """
+    Execute the do_work function and schedule the next run.
+    """
     try:
         do_work()
     finally:
@@ -44,40 +46,39 @@ def schedule_tasks():
             trigger=DateTrigger(run_date=datetime.now() + timedelta(minutes=1)),
         )
 
-
 scheduler = BackgroundScheduler()
 scheduler.add_job(func=schedule_tasks, trigger=DateTrigger(run_date=datetime.now()))
 scheduler.start()
 
-
 @app.route("/")
 def home():
-    # Call load_insights to ensure the most recent data is displayed
+    """
+    Home page route. Calls load_insights to ensure the most recent data is displayed.
+    """
     insights = load_insights()
     return render_template("home.html", insights=insights)
 
-
 @app.route("/methodology")
 def methodology():
+    """
+    Methodology page route.
+    """
     return render_template("methodology.html")
-
 
 @app.route("/map")
 def map_view():
-    # Generate the map and get the path to the temporary file
+    """
+    Map view route. Generates the map and serves it directly from a temporary file path.
+    """
     map_file_path = generate_map(
         "processed_data/biden_win_probabilities.csv",
         "raw_data/cb_2023_us_state_500k.shp",
     )
-
-    # Serve the map image directly from the temporary file path
     response = send_file(map_file_path, mimetype="image/png")
-
-    # Clean up the temporary file after sending the file
     os.unlink(map_file_path)
-
     return response
 
-
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=80)
+    # Define the port number as a constant
+    PORT_NUMBER = 80
+    app.run(host="0.0.0.0", port=PORT_NUMBER)
