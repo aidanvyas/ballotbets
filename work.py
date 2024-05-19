@@ -341,13 +341,19 @@ def generate_plots(polling_data_file, probabilities_file):
     plt.savefig('static/plots/election_win_probabilities.png')
 
 
+import tempfile
+
 def generate_map(state_probabilities, states_shapefile):
     """
     Generate a choropleth map visualizing the probabilities of a specified outcome by state.
+    The map is saved to a temporary file and the path is returned.
 
     Parameters:
         state_probabilities (str): Path to the CSV file containing state probabilities.
         states_shapefile (str): Path to the shapefile of US states.
+
+    Returns:
+        str: Path to the temporary file containing the generated map image.
     """
     # Load probability data and the US states shapefile
     data = pd.read_csv(state_probabilities)
@@ -386,8 +392,12 @@ def generate_map(state_probabilities, states_shapefile):
     ax.axis('off')
     plt.tight_layout()
 
-    # Save the map to a file
-    plt.savefig('static/plots/win_probability_map.png', dpi=1000, bbox_inches='tight')
+    # Save the map to a temporary file
+    temp_file = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
+    plt.savefig(temp_file.name, dpi=1000, bbox_inches='tight')
+    plt.close()
+
+    return temp_file.name
 
 
 import os

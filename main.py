@@ -1,10 +1,11 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, send_file
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.date import DateTrigger
 import psycopg2
 import os
 from datetime import datetime, timedelta
-from work import do_work
+from work import do_work, generate_map
+import tempfile
 
 app = Flask(__name__)
 
@@ -51,6 +52,19 @@ def home():
 @app.route('/methodology')
 def methodology():
     return render_template('methodology.html')
+
+@app.route('/map')
+def map_view():
+    # Generate the map and get the path to the temporary file
+    map_file_path = generate_map('processed_data/biden_win_probabilities.csv', 'raw_data/cb_2023_us_state_500k.shp')
+
+    # Serve the map image directly from the temporary file path
+    response = send_file(map_file_path, mimetype='image/png')
+
+    # Clean up the temporary file after sending the file
+    os.unlink(map_file_path)
+
+    return response
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=80)
