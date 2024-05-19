@@ -1,4 +1,4 @@
-from flask import Flask, render_template, send_file
+from flask import Flask, render_template, send_file, jsonify
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.date import DateTrigger
 import psycopg2
@@ -70,8 +70,12 @@ def map_view():
     """
     Map view route. Serves the generated map image.
     """
-    map_file_path = 'static/plots/win_probability_map.png'
-    return send_file(map_file_path, mimetype='image/png')
+    try:
+        map_file_path = 'static/plots/win_probability_map.png'
+        return send_file(map_file_path, mimetype='image/png')
+    except Exception as e:
+        logging.error(f"Failed to serve map image: {e}")
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     # Define the port number as a constant
