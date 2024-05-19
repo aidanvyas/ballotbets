@@ -129,8 +129,8 @@ def create_national_polling_averages(input_file, output_file):
     # Clean 'end_date' column to ensure consistent date format
     # Add leading zeros to single-digit months/days and convert two-digit years to four-digit years
     # Assuming any year below 30 should be treated as 2000s, otherwise 1900s
-    polling_data['end_date'] = polling_data['end_date'].str.replace(r'(?<!\d)(\d{1,2})/(?<!\d)(\d{1,2})/(?=\d{2}(?!\d))', r'0\1/0\2/', regex=True)
-    polling_data['end_date'] = polling_data['end_date'].str.replace(r'(?<!\d)(\d{1,2})/(?=\d{2}/\d{2}(?!\d))', r'0\1/', regex=True)
+    polling_data['end_date'] = polling_data['end_date'].str.replace(r'(?<!\d)(\d{1})/(?=\d{1}/\d{2})', r'0\1/', regex=True)
+    polling_data['end_date'] = polling_data['end_date'].str.replace(r'(?<!\d)(\d{1})/(?=\d{2}/\d{2})', r'0\1/', regex=True)
     polling_data['end_date'] = polling_data['end_date'].str.replace(r'(?<=/\d{2}/)(\d{2})(?!\d)', lambda x: '20' + x.group(0) if int(x.group(0)) < 30 else '19' + x.group(0), regex=True)
 
     # Log the state of the 'end_date' column before conversion
