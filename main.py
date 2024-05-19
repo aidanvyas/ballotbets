@@ -68,15 +68,10 @@ def methodology():
 @app.route("/map")
 def map_view():
     """
-    Map view route. Generates the map and serves it directly from a temporary file path.
+    Map view route. Serves the generated map image.
     """
-    map_file_path = generate_map(
-        "processed_data/biden_win_probabilities.csv",
-        "raw_data/cb_2023_us_state_500k.shp",
-    )
-    response = send_file(map_file_path, mimetype="image/png")
-    os.unlink(map_file_path)
-    return response
+    map_file_path = 'static/plots/win_probability_map.png'
+    return send_file(map_file_path, mimetype='image/png')
 
 if __name__ == "__main__":
     # Define the port number as a constant
