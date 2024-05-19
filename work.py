@@ -27,66 +27,68 @@ from scipy.stats import norm
 import json
 import psycopg2
 import traceback
+import logging  # Added import for logging
 
 # Constants
 LAMBDA = 0.0619
 STANDARD_DEVIATION = 5.356
 
 
-def get_polling_data(url, output_file):
+def get_polling_data(url: str, output_file: str, candidates: List[str]) -> None:
     """
     Download the CSV file from the specified URL and save it locally.
 
     Parameters:
         url (str): The URL of the CSV file to download.
         output_file (str): The path to save the downloaded CSV file.
+        candidates (list): List of candidate names to filter in the dataset.
     """
-    # Get the polling data from the URL.
-    response = requests.get(url)
+    try:
+        # Get the polling data from the URL.
+        response = requests.get(url)
+        response.raise_for_status()  # Raise an HTTPError if the HTTP request returned an unsuccessful status code
 
-    # Decode the content of the response.
-    content = response.content.decode("utf-8")
+        # Decode the content of the response.
+        content = response.content.decode("utf-8")
 
-    # Read the polling data into a DataFrame.
-    polling_data = pd.read_csv(io.StringIO(content))
+        # Read the polling data into a DataFrame.
+        polling_data = pd.read_csv(io.StringIO(content))
 
-    # Identify non-candidate columns.
-    non_candidate_columns = [
-        col for col in polling_data.columns if col not in ("candidate_name", "pct")
-    ]
+        # Identify non-candidate columns.
+        non_candidate_columns = [
+            col for col in polling_data.columns if col not in candidates
+        ]
 
-    # Drop duplicate rows based on the poll_id column.
-    unique_poll_details = polling_data[non_candidate_columns].drop_duplicates("poll_id")
+        # Drop duplicate rows based on the poll_id column.
+        unique_poll_details = polling_data[non_candidate_columns].drop_duplicates("poll_id")
 
-    # Pivot the candidate names and percentages to columns.
-    candidate_percentages = polling_data.pivot_table(
-        index="poll_id", columns="candidate_name", values="pct", aggfunc="first"
-    ).reset_index()
+        # Pivot the candidate names and percentages to columns.
+        candidate_percentages = polling_data.pivot_table(
+            index="poll_id", columns="candidate_name", values="pct", aggfunc="first"
+        ).reset_index()
 
-    # Merge the unique poll details with the candidate percentages.
-    merged_poll_data = pd.merge(
-        unique_poll_details, candidate_percentages, on="poll_id", how="left"
-    )
+        # Merge the unique poll details with the candidate percentages.
+        merged_poll_data = pd.merge(
+            unique_poll_details, candidate_percentages, on="poll_id", how="left"
+        )
 
-    # Fill missing values with 0.
-    merged_poll_data.fillna(0, inplace=True)
+        # Fill missing values with 0.
+        merged_poll_data.fillna(0, inplace=True)
 
-    # Rename the columns for consistency.
-    merged_poll_data = merged_poll_data[
-        ["poll_id", "display_name", "state", "end_date", "sample_size", "url"]
-        + [col for col in candidate_percentages.columns if col != "poll_id"]
-    ]
+        # Filter out rows where all candidates have 0 percentage.
+        merged_poll_data = merged_poll_data[
+            (merged_poll_data[candidates] != 0).any(axis=1)
+        ]
 
-    # Filter out rows where both candidates have 0 percentage.
-    merged_poll_data = merged_poll_data[
-        (merged_poll_data["Joe Biden"] != 0) & (merged_poll_data["Donald Trump"] != 0)
-    ]
+        # Create the output directory if it does not exist.
+        os.makedirs(os.path.dirname(output_file), exist_ok=True)
 
-    # Create the output directory if it does not exist.
-    os.makedirs(os.path.dirname(output_file), exist_ok=True)
-
-    # Save the processed polling data to a CSV file.
-    merged_poll_data.to_csv(output_file, index=False)
+        # Save the processed polling data to a CSV file.
+        merged_poll_data.to_csv(output_file, index=False)
+    except requests.exceptions.RequestException as e:
+        logging.error(f"An error occurred while downloading the polling data: {e}")
+    except pd.errors.ParserError as e:
+        logging.error(f"An error occurred while parsing the polling data: {e}")
 
 
 def create_national_polling_averages(input_file, output_file):
@@ -516,36 +518,31 @@ def do_work():
     processed_file = "processed_data/processed_polls.csv"
     output_file = "processed_data/president_polls_daily.csv"
 
-    storage = []
-
     get_polling_data(url, processed_file)
-    print("Polling data downloaded and processed.")
+    logging.info("Polling data downloaded and processed.")
 
     polling_averages_string = create_national_polling_averages(
         processed_file, output_file
     )
-    storage.append(polling_averages_string)
-    print("National polling averages calculated.")
+    logging.info("National polling averages calculated.")
 
     close_states_string = create_state_polling_averages()
-    storage.append(close_states_string)
-    print("State polling averages calculated.")
+    logging.info("State polling averages calculated.")
 
     electoral_college_votes_list = simulate_electoral_votes()
-    storage.extend(electoral_college_votes_list)
-    print("Electoral votes simulated.")
+    logging.info("Electoral votes simulated.")
 
     generate_plots(
         "processed_data/president_polls_daily.csv",
         "processed_data/simulated_national_election_outcomes_correlated.csv",
     )
-    print("Polling data plots generated.")
+    logging.info("Polling data plots generated.")
 
-    generate_map(
+    map_file_path = generate_map(
         "processed_data/biden_win_probabilities.csv",
         "raw_data/cb_2023_us_state_500k.shp",
     )
-    print("Map generated.")
+    logging.info(f"Map generated at {map_file_path}.")
 
     # Connect to the PostgreSQL database using psycopg2 and handle any potential errors
     try:
@@ -561,18 +558,13 @@ def do_work():
         }
 
         # Insert data into the work_log table as a single JSON entry
-        try:
-            cur.execute(
-                "INSERT INTO work_log (timestamp, data) VALUES (NOW(), %s)",
-                [json.dumps(insights_data)],
-            )
-        except Exception as e:
-            print(f"An error occurred while inserting insights into the database: {e}")
-
+        cur.execute(
+            "INSERT INTO work_log (timestamp, data) VALUES (NOW(), %s)",
+            [json.dumps(insights_data)],
+        )
         # Commit the changes and close the connection
         conn.commit()
         cur.close()
         conn.close()
     except Exception as e:
-        print(f"An error occurred while interacting with the database: {e}")
-        traceback.print_exc()
+        logging.error(f"An error occurred while interacting with the database: {e}", exc_info=True)
