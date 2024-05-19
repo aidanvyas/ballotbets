@@ -165,3 +165,4 @@ static/plots/election_win_probabilities.png
 processed_data/*.csv
 static/plots/*.png
 processed_data/president_polls_daily.csv
+static/work_log.csv
