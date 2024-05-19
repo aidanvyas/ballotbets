@@ -26,6 +26,22 @@ import numpy as np
 import pandas as pd
 import requests
 from scipy.stats import norm
+import logging
+
+# Configure logging to capture all output and warnings
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s: %(message)s',
+    handlers=[
+        logging.FileHandler('work_log_output.log'),
+        logging.StreamHandler()
+    ]
+)
+
+logging.info("Script execution started.")
+
+# Replace all print statements with logging.info calls throughout the script
+# to ensure all output is captured in the log file as well as the console.
 
 # Configure warnings to display all warnings
 warnings.simplefilter("default")
@@ -403,6 +419,7 @@ def generate_map(state_probabilities, states_shapefile):
 
 
 def do_work():
+    logging.info("Starting do_work function.")
     url = "https://projects.fivethirtyeight.com/polls/data/president_polls.csv"
     processed_file = 'processed_data/processed_polls.csv'
     output_file = 'processed_data/president_polls_daily.csv'
@@ -410,28 +427,28 @@ def do_work():
     storage = []
 
     get_polling_data(url, processed_file)
-    print("Polling data downloaded and processed.")
+    logging.info("Polling data downloaded and processed.")
 
     polling_averages_string = create_national_polling_averages(processed_file, output_file)
     storage.append(polling_averages_string)
-    print("National polling averages calculated.")
+    logging.info("National polling averages calculated.")
 
     close_states_string = create_state_polling_averages()
     storage.append(close_states_string)
-    print("State polling averages calculated.")
+    logging.info("State polling averages calculated.")
 
     electoral_college_votes_list = simulate_electoral_votes()
     storage.extend(electoral_college_votes_list)
-    print("Electoral votes simulated.")
+    logging.info("Electoral votes simulated.")
 
     generate_plots('processed_data/president_polls_daily.csv', 'processed_data/simulated_national_election_outcomes_correlated.csv')
-    print("Polling data plots generated.")
+    logging.info("Polling data plots generated.")
 
     generate_map('processed_data/biden_win_probabilities.csv', 'raw_data/cb_2023_us_state_500k.shp')
-    print("Map generated.")
+    logging.info("Map generated.")
 
     # create the file if it doesn't exist
-    
+
     # save storage to a csv file
     with open('static/work_log.csv', 'w', newline='') as f:
         writer = csv.writer(f)
