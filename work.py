@@ -60,7 +60,9 @@ def get_polling_data(url: str, output_file: str, candidates: List[str]) -> None:
         ]
 
         # Drop duplicate rows based on the poll_id column.
-        unique_poll_details = polling_data[non_candidate_columns].drop_duplicates("poll_id")
+        unique_poll_details = polling_data[non_candidate_columns].drop_duplicates(
+            "poll_id"
+        )
 
         # Pivot the candidate names and percentages to columns.
         candidate_percentages = polling_data.pivot_table(
@@ -568,4 +570,6 @@ def do_work():
         cur.close()
         conn.close()
     except Exception as e:
-        logging.error(f"An error occurred while interacting with the database: {e}", exc_info=True)
+        logging.error(
+            f"An error occurred while interacting with the database: {e}", exc_info=True
+        )
