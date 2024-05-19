@@ -140,6 +140,10 @@ def create_national_polling_averages(input_file, output_file):
     polling_data['end_date'] = pd.to_datetime(polling_data['end_date'], errors='coerce', format='%m/%d/%y')
     logging.info(f"Converted 'end_date' to datetime, resulting in {polling_data['end_date'].isna().sum()} 'NaT' values before removal.")
 
+    # Log details of 'NaT' values for debugging
+    nat_values = polling_data[polling_data['end_date'].isna()]
+    logging.debug(f"'NaT' values found in the following rows:\n{nat_values}")
+
     # Remove rows with 'NaT' values in 'end_date'
     polling_data = polling_data.dropna(subset=['end_date'])
     logging.info(f"Removed 'NaT' values, resulting in {polling_data['end_date'].isna().sum()} 'NaT' values after removal.")
@@ -160,6 +164,17 @@ def create_national_polling_averages(input_file, output_file):
     if pd.isna(first_end_date) or pd.isna(last_end_date):
         logging.error("Cannot create date range with NaT values for start or end date.")
         return "Error: Cannot create date range with NaT values for start or end date."
+
+    # Log the rows where 'end_date' is at the min and max to ensure they are valid
+    logging.debug(f"Row with first end date:\n{polling_data[polling_data['end_date'] == first_end_date]}")
+    logging.debug(f"Row with last end date:\n{polling_data[polling_data['end_date'] == last_end_date]}")
+
+    # Additional logging to check if 'first_end_date' or 'last_end_date' is NaT
+    if pd.isna(first_end_date):
+        logging.debug(f"First end date is NaT. Unable to create date range.")
+    if pd.isna(last_end_date):
+        logging.debug(f"Last end date is NaT. Unable to create date range.")
+
     # Create the date range only if both first and last end dates are valid
     dates = pd.date_range(start=first_end_date, end=last_end_date)
     logging.info(f"Created date range from {first_end_date} to {last_end_date}")
@@ -204,6 +219,7 @@ def create_state_polling_averages():
     This function adjusts shares and boost factors according to past election results and saves the outputs to CSV files.
     """
     print("Entering create_state_polling_averages function.")
+    logging.debug("Entering create_state_polling_averages function.")
     # Load data from CSV files
     past_results = pd.read_csv('raw_data/raw_past_results.csv')
     national_polling = pd.read_csv('processed_data/president_polls_daily.csv')
@@ -215,21 +231,45 @@ def create_state_polling_averages():
     except ValueError as e:
         warnings.warn(f"Date parsing error in national_polling: {e}")
 
-    try:
-        state_polling['end_date'] = pd.to_datetime(state_polling['end_date'], format='%Y-%m-%d', errors='coerce')
-    except ValueError as e:
-        warnings.warn(f"Date parsing error in state_polling: {e}")
+    # Clean 'end_date' column to ensure consistent date format
+    # Add leading zeros to single-digit months/days and convert two-digit years to four-digit years
+    # Assuming any year below 30 should be treated as 2000s, otherwise 1900s
+    state_polling['end_date'] = state_polling['end_date'].str.replace(r'(?<!\d)(\d{1})/(?=\d{1}/\d{2})', r'0\1/', regex=True)
+    state_polling['end_date'] = state_polling['end_date'].str.replace(r'(?<!\d)(\d{1})/(?=\d{2}/\d{2})', r'0\1/', regex=True)
+    state_polling['end_date'] = state_polling['end_date'].str.replace(r'(?<=/\d{2}/)(\d{2})(?!\d)', lambda x: '20' + x.group(0) if int(x.group(0)) < 30 else '19' + x.group(0), regex=True)
 
-    # Extract states excluding national results
-    states = past_results.loc[past_results['Location'] != 'National', 'Location'].unique()
+    # Convert 'end_date' to datetime objects, coercing errors to 'NaT'
+    state_polling['end_date'] = pd.to_datetime(state_polling['end_date'], errors='coerce', format='%m/%d/%Y')
+    # Log the state of the 'end_date' column after conversion
+    logging.info(f"'end_date' column after conversion:\n{state_polling['end_date'].head()}")
+    logging.info(f"Number of 'NaT' values after conversion: {state_polling['end_date'].isna().sum()}")
+
+    # Remove rows with 'NaT' values in 'end_date'
+    state_polling = state_polling.dropna(subset=['end_date'])
+    logging.info(f"Removed 'NaT' values, resulting in {state_polling['end_date'].isna().sum()} 'NaT' values after removal.")
 
     # Define date range for averaging, ensuring no NaT values are used
+    if state_polling['end_date'].isna().any():
+        logging.error("NaT values present after dropping from 'end_date'. Cannot proceed with date range creation.")
+        return "Error: NaT values present after dropping from 'end_date'. Cannot proceed with date range creation."
+
+    # Calculate the start and end dates for the date range
     start_date = national_polling['Date'].min() + timedelta(days=14)
     end_date = state_polling['end_date'].max()
+
+    # Log the min and max dates to ensure they are not NaT
+    logging.info(f"Start date for averaging: {start_date}, End date for averaging: {end_date}")
+
+    # If either the start or end date is NaT, log an error and do not attempt to create a date range
     if pd.isna(start_date) or pd.isna(end_date):
         logging.error("Cannot create date range with NaT values for start or end date.")
         return "Error: Cannot create date range with NaT values for start or end date."
+
     date_range = pd.date_range(start=start_date, end=end_date)
+    logging.info(f"Date range created from {start_date} to {end_date}")
+
+    # Extract states excluding national results
+    states = past_results.loc[past_results['Location'] != 'National', 'Location'].unique()
 
     # Pre-calculate national past results for optimization
     national_past_results = past_results.loc[past_results['Location'] == 'National']
