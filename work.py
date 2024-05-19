@@ -16,7 +16,6 @@ import io
 import os
 import time
 from datetime import timedelta
-
 import csv
 import geopandas as gpd
 import matplotlib.pyplot as plt
@@ -28,6 +27,7 @@ import json
 import psycopg2
 import traceback
 import logging  # Added import for logging
+from typing import List  # Added import for List type hinting
 
 # Constants
 LAMBDA = 0.0619
@@ -517,8 +517,9 @@ def do_work():
     url = "https://projects.fivethirtyeight.com/polls/data/president_polls.csv"
     processed_file = "processed_data/processed_polls.csv"
     output_file = "processed_data/president_polls_daily.csv"
+    candidates = ["Joe Biden", "Donald Trump"]  # List of candidate names
 
-    get_polling_data(url, processed_file)
+    get_polling_data(url, processed_file, candidates)
     logging.info("Polling data downloaded and processed.")
 
     polling_averages_string = create_national_polling_averages(
