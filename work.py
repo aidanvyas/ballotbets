@@ -191,9 +191,12 @@ def create_state_polling_averages():
     # Extract states excluding national results
     states = past_results.loc[past_results['Location'] != 'National', 'Location'].unique()
 
-    # Define date range for averaging
+    # Define date range for averaging, ensuring no NaT values are used
     start_date = national_polling['Date'].min() + timedelta(days=14)
     end_date = state_polling['end_date'].max()
+    if pd.isna(start_date) or pd.isna(end_date):
+        logging.error("Cannot create date range with NaT values for start or end date.")
+        return "Error: Cannot create date range with NaT values for start or end date."
     date_range = pd.date_range(start=start_date, end=end_date)
 
     # Pre-calculate national past results for optimization
