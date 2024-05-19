@@ -16,6 +16,7 @@ This script supports extensive data analysis workflows, making it suitable for u
 import io
 import os
 import time
+import warnings  # Import the warnings module
 from datetime import timedelta
 
 import csv
@@ -25,6 +26,9 @@ import numpy as np
 import pandas as pd
 import requests
 from scipy.stats import norm
+
+# Configure warnings to display all warnings
+warnings.simplefilter("default")
 
 # Constants
 LAMBDA = 0.0619
@@ -101,8 +105,14 @@ def create_national_polling_averages(input_file, output_file):
     # Filter to include only national polls.
     polling_data = polling_data[polling_data['state'] == '0']
 
-    # Convert 'end_date' to a datetime object and set date range.
-    polling_data['end_date'] = pd.to_datetime(polling_data['end_date'])
+    # Convert 'end_date' to a datetime object and set date range, with error handling for parsing
+    try:
+        polling_data['end_date'] = pd.to_datetime(polling_data['end_date'])
+    except ValueError as e:
+        warnings.warn(f"Date parsing error: {e}")
+        # Handle the error by setting a default date or taking other appropriate action
+        # For the purpose of this example, we'll set a default date, but this should be tailored to the application's needs
+        polling_data['end_date'] = pd.to_datetime('1970-01-01')
     first_end_date = polling_data['end_date'].min() + pd.Timedelta(days=1)
     last_end_date = polling_data['end_date'].max() + pd.Timedelta(days=1)
     dates = pd.date_range(start=first_end_date, end=last_end_date)
@@ -150,9 +160,18 @@ def create_state_polling_averages():
     national_polling = pd.read_csv('processed_data/president_polls_daily.csv')
     state_polling = pd.read_csv('processed_data/processed_polls.csv')
 
-    # Convert date columns to datetime objects only once
-    national_polling['Date'] = pd.to_datetime(national_polling['Date'])
-    state_polling['end_date'] = pd.to_datetime(state_polling['end_date'])
+    # Convert date columns to datetime objects only once, with error handling for parsing
+    try:
+        national_polling['Date'] = pd.to_datetime(national_polling['Date'])
+    except ValueError as e:
+        warnings.warn(f"Date parsing error in national_polling: {e}")
+        national_polling['Date'] = pd.to_datetime('1970-01-01')  # Default date set as an example
+
+    try:
+        state_polling['end_date'] = pd.to_datetime(state_polling['end_date'])
+    except ValueError as e:
+        warnings.warn(f"Date parsing error in state_polling: {e}")
+        state_polling['end_date'] = pd.to_datetime('1970-01-01')  # Default date set as an example
 
     # Extract states excluding national results
     states = past_results.loc[past_results['Location'] != 'National', 'Location'].unique()
