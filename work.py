@@ -127,6 +127,11 @@ def create_national_polling_averages(input_file, output_file):
     polling_data = polling_data.dropna(subset=['end_date'])
     first_end_date = polling_data['end_date'].min() + pd.Timedelta(days=1)
     last_end_date = polling_data['end_date'].max() + pd.Timedelta(days=1)
+
+    # Ensure first_end_date and last_end_date are not NaT before creating date range
+    if pd.isna(first_end_date) or pd.isna(last_end_date):
+        logging.error("Date range cannot be created due to NaT values in 'end_date'.")
+        return "Error: Date range cannot be created due to NaT values in 'end_date'."
     dates = pd.date_range(start=first_end_date, end=last_end_date)
 
     # Initialize output file and write the header.
