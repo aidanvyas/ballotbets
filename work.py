@@ -174,16 +174,14 @@ def create_state_polling_averages():
 
     # Convert date columns to datetime objects only once, with error handling for parsing
     try:
-        national_polling['Date'] = pd.to_datetime(national_polling['Date'])
+        national_polling['Date'] = pd.to_datetime(national_polling['Date'], format='%Y-%m-%d', errors='coerce')
     except ValueError as e:
         warnings.warn(f"Date parsing error in national_polling: {e}")
-        national_polling['Date'] = pd.to_datetime('1970-01-01')  # Default date set as an example
 
     try:
-        state_polling['end_date'] = pd.to_datetime(state_polling['end_date'])
+        state_polling['end_date'] = pd.to_datetime(state_polling['end_date'], format='%Y-%m-%d', errors='coerce')
     except ValueError as e:
         warnings.warn(f"Date parsing error in state_polling: {e}")
-        state_polling['end_date'] = pd.to_datetime('1970-01-01')  # Default date set as an example
 
     # Extract states excluding national results
     states = past_results.loc[past_results['Location'] != 'National', 'Location'].unique()
