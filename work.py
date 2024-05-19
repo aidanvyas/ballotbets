@@ -27,13 +27,14 @@ from scipy.stats import norm
 import json
 import psycopg2
 import traceback
+import logging  # Added import for logging
 
 # Constants
 LAMBDA = 0.0619
 STANDARD_DEVIATION = 5.356
 
 
-def get_polling_data(url, output_file, candidates):
+def get_polling_data(url: str, output_file: str, candidates: List[str]) -> None:
     """
     Download the CSV file from the specified URL and save it locally.
 
@@ -85,9 +86,9 @@ def get_polling_data(url, output_file, candidates):
         # Save the processed polling data to a CSV file.
         merged_poll_data.to_csv(output_file, index=False)
     except requests.exceptions.RequestException as e:
-        print(f"An error occurred while downloading the polling data: {e}")
+        logging.error(f"An error occurred while downloading the polling data: {e}")
     except pd.errors.ParserError as e:
-        print(f"An error occurred while parsing the polling data: {e}")
+        logging.error(f"An error occurred while parsing the polling data: {e}")
 
 
 def create_national_polling_averages(input_file, output_file):
@@ -517,36 +518,31 @@ def do_work():
     processed_file = "processed_data/processed_polls.csv"
     output_file = "processed_data/president_polls_daily.csv"
 
-    storage = []
-
     get_polling_data(url, processed_file)
-    print("Polling data downloaded and processed.")
+    logging.info("Polling data downloaded and processed.")
 
     polling_averages_string = create_national_polling_averages(
         processed_file, output_file
     )
-    storage.append(polling_averages_string)
-    print("National polling averages calculated.")
+    logging.info("National polling averages calculated.")
 
     close_states_string = create_state_polling_averages()
-    storage.append(close_states_string)
-    print("State polling averages calculated.")
+    logging.info("State polling averages calculated.")
 
     electoral_college_votes_list = simulate_electoral_votes()
-    storage.extend(electoral_college_votes_list)
-    print("Electoral votes simulated.")
+    logging.info("Electoral votes simulated.")
 
     generate_plots(
         "processed_data/president_polls_daily.csv",
         "processed_data/simulated_national_election_outcomes_correlated.csv",
     )
-    print("Polling data plots generated.")
+    logging.info("Polling data plots generated.")
 
-    generate_map(
+    map_file_path = generate_map(
         "processed_data/biden_win_probabilities.csv",
         "raw_data/cb_2023_us_state_500k.shp",
     )
-    print("Map generated.")
+    logging.info(f"Map generated at {map_file_path}.")
 
     # Connect to the PostgreSQL database using psycopg2 and handle any potential errors
     try:
@@ -562,18 +558,13 @@ def do_work():
         }
 
         # Insert data into the work_log table as a single JSON entry
-        try:
-            cur.execute(
-                "INSERT INTO work_log (timestamp, data) VALUES (NOW(), %s)",
-                [json.dumps(insights_data)],
-            )
-        except Exception as e:
-            print(f"An error occurred while inserting insights into the database: {e}")
-
+        cur.execute(
+            "INSERT INTO work_log (timestamp, data) VALUES (NOW(), %s)",
+            [json.dumps(insights_data)],
+        )
         # Commit the changes and close the connection
         conn.commit()
         cur.close()
         conn.close()
     except Exception as e:
-        print(f"An error occurred while interacting with the database: {e}")
-        traceback.print_exc()
+        logging.error(f"An error occurred while interacting with the database: {e}", exc_info=True)
