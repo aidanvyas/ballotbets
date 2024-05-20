@@ -87,7 +87,7 @@ def get_polling_data(url, output_file):
     merged_poll_data = pd.merge(unique_poll_details, candidate_percentages, on='poll_id', how='left')
 
     # Fill missing values with 0 and infer the most appropriate data types automatically.
-    merged_poll_data.fillna(0, downcast='infer', inplace=True)
+    merged_poll_data = merged_poll_data.fillna(0).infer_objects()
     logging.info(f"After fillna and downcast='infer', 'end_date' has {merged_poll_data['end_date'].isna().sum()} 'NaT' values.")
 
     # Rename the columns for consistency.
@@ -228,7 +228,8 @@ def create_state_polling_averages():
     try:
         national_polling['Date'] = pd.to_datetime(national_polling['Date'], format='%Y-%m-%d', errors='coerce')
     except ValueError as e:
-        warnings.warn(f"Date parsing error in national_polling: {e}")
+        logging.error(f"Date parsing error in national_polling: {e}")
+        return "Error: Date parsing error in national_polling."
 
     # Clean 'end_date' column to ensure consistent date format
     # Add leading zeros to single-digit months/days and convert two-digit years to four-digit years
@@ -243,14 +244,13 @@ def create_state_polling_averages():
     logging.info(f"'end_date' column after conversion:\n{state_polling['end_date'].head()}")
     logging.info(f"Number of 'NaT' values after conversion: {state_polling['end_date'].isna().sum()}")
 
+    # Identify and log rows with 'NaT' values
+    nat_rows = state_polling[state_polling['end_date'].isna()]
+    logging.debug(f"Rows with 'NaT' values after conversion:\n{nat_rows}")
+
     # Remove rows with 'NaT' values in 'end_date'
     state_polling = state_polling.dropna(subset=['end_date'])
     logging.info(f"Removed 'NaT' values, resulting in {state_polling['end_date'].isna().sum()} 'NaT' values after removal.")
-
-    # Define date range for averaging, ensuring no NaT values are used
-    if state_polling['end_date'].isna().any():
-        logging.error("NaT values present after dropping from 'end_date'. Cannot proceed with date range creation.")
-        return "Error: NaT values present after dropping from 'end_date'. Cannot proceed with date range creation."
 
     # Calculate the start and end dates for the date range
     start_date = national_polling['Date'].min() + timedelta(days=14)
@@ -264,8 +264,13 @@ def create_state_polling_averages():
         logging.error("Cannot create date range with NaT values for start or end date.")
         return "Error: Cannot create date range with NaT values for start or end date."
 
-    date_range = pd.date_range(start=start_date, end=end_date)
-    logging.info(f"Date range created from {start_date} to {end_date}")
+    # Create the date range only if both start and end dates are valid
+    if not pd.isna(start_date) and not pd.isna(end_date):
+        date_range = pd.date_range(start=start_date, end=end_date)
+        logging.info(f"Date range created from {start_date} to {end_date}")
+    else:
+        logging.error("Date range creation failed due to NaT values in start or end date.")
+        return "Error: Date range creation failed due to NaT values in start or end date."
 
     # Extract states excluding national results
     states = past_results.loc[past_results['Location'] != 'National', 'Location'].unique()
@@ -471,7 +476,7 @@ def generate_map(state_probabilities, states_shapefile):
 
     # Merge and prepare states data
     states_data = states.merge(last_row, on='State', how='left')
-    states_data['Probability'] = states_data['Probability'].fillna(0, downcast='infer')
+    states_data['Probability'] = states_data['Probability'].fillna(0).infer_objects()
 
     # Define colors
     white = '#FFFFFF'
