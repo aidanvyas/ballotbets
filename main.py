@@ -77,6 +77,18 @@ def map_view():
         logging.error(f"Failed to serve map image: {e}")
         return jsonify({"error": str(e)}), 500
 
+@app.route("/national_polling_averages")
+def national_polling_averages():
+    """
+    National polling averages graph route. Serves the generated national polling averages image.
+    """
+    try:
+        graph_file_path = 'static/plots/national_polling_averages.png'
+        return send_file(graph_file_path, mimetype='image/png')
+    except Exception as e:
+        logging.error(f"Failed to serve national polling averages graph: {e}")
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == "__main__":
     # Define the port number as a constant
     PORT_NUMBER = 80
