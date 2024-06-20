@@ -511,9 +511,11 @@ def do_work():
 
         storage = []
 
+        logging.info("Calling get_polling_data function.")
         get_polling_data(url, processed_file)
         logging.info("Polling data downloaded and processed.")
 
+        logging.info("Calling create_national_polling_averages function.")
         polling_averages_string = create_national_polling_averages(processed_file, output_file)
         if "ERROR" in polling_averages_string:
             logging.error(polling_averages_string)
@@ -521,6 +523,7 @@ def do_work():
         storage.append(polling_averages_string)
         logging.info("National polling averages calculated.")
 
+        logging.info("Calling create_state_polling_averages function.")
         close_states_string = create_state_polling_averages()
         if "ERROR" in close_states_string:
             logging.error(close_states_string)
@@ -528,22 +531,27 @@ def do_work():
         storage.append(close_states_string)
         logging.info("State polling averages calculated.")
 
+        logging.info("Calling simulate_electoral_votes function.")
         electoral_college_votes_list = simulate_electoral_votes()
         storage.extend(electoral_college_votes_list)
         logging.info("Electoral votes simulated.")
 
+        logging.info("Calling generate_plots function.")
         generate_plots('processed_data/president_polls_daily.csv', 'processed_data/simulated_national_election_outcomes_correlated.csv')
         logging.info("Polling data plots generated.")
 
+        logging.info("Calling generate_map function.")
         generate_map('processed_data/biden_win_probabilities.csv', 'raw_data/cb_2023_us_state_500k.shp')
         logging.info("Map generated.")
 
         # create the file if it doesn't exist
-
-        # save storage to a csv file
+        logging.info("Creating work_log.csv file.")
         with open('static/work_log.csv', 'w', newline='') as f:
             writer = csv.writer(f)
             for item in storage:
                 writer.writerow([item])  # Write each item as its own row
+        logging.info("work_log.csv file created and data written.")
     except Exception as e:
         logging.error(f"An error occurred: {e}", exc_info=True)
+    finally:
+        logging.info("Exiting do_work function.")
