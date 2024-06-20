@@ -33,7 +33,6 @@ logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s %(levelname)s: %(message)s',
     handlers=[
-        logging.FileHandler('work_log_output.log'),
         logging.StreamHandler()
     ]
 )
@@ -511,10 +510,13 @@ def do_work():
 
         storage = []
 
+        print("Calling get_polling_data function.")
         logging.info("Calling get_polling_data function.")
         get_polling_data(url, processed_file)
         logging.info("Polling data downloaded and processed.")
+        print("Polling data downloaded and processed.")
 
+        print("Calling create_national_polling_averages function.")
         logging.info("Calling create_national_polling_averages function.")
         polling_averages_string = create_national_polling_averages(processed_file, output_file)
         if "ERROR" in polling_averages_string:
@@ -522,7 +524,9 @@ def do_work():
             return
         storage.append(polling_averages_string)
         logging.info("National polling averages calculated.")
+        print("National polling averages calculated.")
 
+        print("Calling create_state_polling_averages function.")
         logging.info("Calling create_state_polling_averages function.")
         close_states_string = create_state_polling_averages()
         if "ERROR" in close_states_string:
@@ -530,28 +534,38 @@ def do_work():
             return
         storage.append(close_states_string)
         logging.info("State polling averages calculated.")
+        print("State polling averages calculated.")
 
+        print("Calling simulate_electoral_votes function.")
         logging.info("Calling simulate_electoral_votes function.")
         electoral_college_votes_list = simulate_electoral_votes()
         storage.extend(electoral_college_votes_list)
         logging.info("Electoral votes simulated.")
+        print("Electoral votes simulated.")
 
+        print("Calling generate_plots function.")
         logging.info("Calling generate_plots function.")
         generate_plots('processed_data/president_polls_daily.csv', 'processed_data/simulated_national_election_outcomes_correlated.csv')
         logging.info("Polling data plots generated.")
+        print("Polling data plots generated.")
 
+        print("Calling generate_map function.")
         logging.info("Calling generate_map function.")
         generate_map('processed_data/biden_win_probabilities.csv', 'raw_data/cb_2023_us_state_500k.shp')
         logging.info("Map generated.")
+        print("Map generated.")
 
         # create the file if it doesn't exist
+        print("Creating work_log.csv file.")
         logging.info("Creating work_log.csv file.")
         with open('static/work_log.csv', 'w', newline='') as f:
             writer = csv.writer(f)
             for item in storage:
                 writer.writerow([item])  # Write each item as its own row
         logging.info("work_log.csv file created and data written.")
+        print("work_log.csv file created and data written.")
     except Exception as e:
         logging.error(f"An error occurred: {e}", exc_info=True)
     finally:
         logging.info("Exiting do_work function.")
+        print("Exiting do_work function.")
